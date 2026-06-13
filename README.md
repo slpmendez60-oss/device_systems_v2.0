@@ -1,175 +1,60 @@
-device_systems API v2.0
+# device_systems API v3.0
 
-API REST para gestion de usuarios con FastAPI. CRUD completo con manejo de errores, codigos HTTP, Dependency Injection y documentacion Swagger/OpenAPI.
+API REST para la gestion de usuarios del sistema device_systems con persistencia de datos mediante SQLAlchemy y SQLite.
 
-Estructura del proyecto
+## Estructura del proyecto
 
-device_systems/
-|__ app/
-|   |__ main.py
-|   |__ schemas/
-|   |   |__ user_schema.py
-|   |__ routes/
-|   |   |__ user_routes.py
-|   |__ services/
-|   |   |__ user_service.py
-|   |__ dependencies/
-|   |   |__ user_dependencies.py
-|   |__ data/
-|       |__ users_db.py
-|__ images/
-|__ requirements.txt
-|__ README.md
+![estructura](images2/estructura_proyecto.png)
 
+## Base de datos generada
 
-Instalacion
+![base_datos](images2/base_datos.png)
 
-pip install -r requirements.txt
+## Swagger UI
 
-Ejecucion
+![swagger](images2/swagger.png)
 
-python -m uvicorn app.main:app --reload
+## Pruebas de endpoints
 
-Documentacion
+### Prueba 1 - Crear usuario valido (POST /users) - 201
+![crear_usuario](images2/crear_usuario.png)
 
-Swagger UI: http://127.0.0.1:8000/docs
-ReDoc:       http://127.0.0.1:8000/redoc
+### Prueba 2 - Email repetido (POST /users) - 400
+![email_repetido](images2/email_repetido.png)
 
-Endpoints
+### Prueba 3 - Listar usuarios (GET /users) - 200
+![listar_usuarios](images2/listar_usuarios.png)
 
-GET    /users                    lista todos los usuarios
-GET    /users?role=admin         filtra por rol
-GET    /users?is_active=true     filtra por estado
-GET    /users/{user_id}          obtiene usuario por id
-POST   /users                    crea un nuevo usuario
-PUT    /users/{user_id}          actualiza usuario completo
-PATCH  /users/{user_id}          actualiza usuario parcialmente
-DELETE /users/{user_id}          elimina un usuario
+### Prueba 4 - Consultar por ID (GET /users/1) - 200
+![consultar_usuario_id](images2/consultar_usuario_id.png)
 
-Codigos de estado HTTP
+### Prueba 5 - Usuario inexistente (GET /users/999) - 404
+![usuario_inexistente](images2/usuario_inexistente.png)
 
-200   operacion exitosa
-201   usuario creado
-400   datos invalidos o correo duplicado o patch vacio
-404   usuario no encontrado
-422   error de validacion Pydantic
+### Prueba 6 - Filtrar por rol (GET /users?role=admin) - 200
+![filtrar_rol](images2/filtrar_rol.png)
 
-Ejemplo POST
+### Prueba 7 - Filtrar activos (GET /users?is_active=true) - 200
+![filtrar_usuarios_activos](images2/filtrar_usuarios_activos.png)
 
-{
-    "name": "Sofia Castro",
-    "email": "sofia@device.com",
-    "role": "user",
-    "is_active": true
-}
+### Prueba 8 - Actualizar completo (PUT /users/1) - 200
+![actualizar_put](images2/actualizar_put.png)
 
-Ejemplo PUT
+### Prueba 9 - Actualizar parcial (PATCH /users/1) - 200
+![actualizar_patch](images2/actualizar_patch.png)
 
-{
-    "name": "Carlos Actualizado",
-    "email": "carlos2@device.com",
-    "role": "support",
-    "is_active": true
-}
+### Prueba 10 - Eliminar usuario (DELETE /users/1) - 204
+![eliminar_usuario](images2/eliminar_usuario.png)
 
-Ejemplo PATCH
+### Prueba 11 - Verificar eliminado (GET /users/1) - 404
+![verificar_usuario_eliminado](images2/verificar_usuario_eliminado.png)
 
-{
-    "role": "admin"
-}
+## Diferencia entre modelo SQLAlchemy y schema Pydantic
 
-Roles permitidos
+El modelo SQLAlchemy representa la tabla en la base de datos. Define las columnas, tipos de datos y restricciones a nivel de base de datos como nullable, unique y primary key. Es la capa que se comunica directamente con SQLite.
 
-admin
-support
-user
+El schema Pydantic define la estructura de datos para la entrada y salida de la API. Aplica validaciones a nivel de aplicacion como longitud minima, formato de email y valores permitidos para el rol. No tiene relacion directa con la base de datos.
 
-Cabeceras de respuesta
+## Reflexion final
 
-X-App-Name: device_systems
-X-API-Version: 2.0
-
-Dependency Injection
-
-Se usa Depends() para reutilizar logica comun entre endpoints:
-
-get_user_or_404     busca un usuario por ID y lanza 404 si no existe
-check_email_exists  verifica si un correo ya esta registrado
-get_api_info        retorna metadatos de la API para las cabeceras
-
-Cada endpoint recibe estas dependencias como parametros y FastAPI las ejecuta automaticamente antes de la funcion principal.
-
-Manejo de errores
-
-Los errores se controlan con HTTPException y manejadores personalizados:
-
-404   usuario no encontrado via get_user_or_404 en dependencies
-400   correo duplicado en servicios, patch vacio en rutas
-422   validacion automatica de Pydantic con manejador personalizado
-500   manejador generico para errores inesperados
-
-Servidor corriendo
-
-![arrancando_servidor](images/arrancando_servidor.png)
-
-Capturas de Swagger UI
-
-![Swagger_UI](images/Swagger_UI.png)
-
-Capturas de ReDoc
-
-![ReDoc](images/ReDoc.png)
-
-Evidencia GET /users
-
-![get_users](images/get_users.png)
-![get_users2](images/get_users2.png)
-
-Evidencia GET /users/{user_id}
-
-![get_user_by_id](images/get_user_by_id.png)
-![get_user_by_id2](images/get_user_by_id2.png)
-
-Evidencia POST /users
-
-![post_users](images/post_users.png)
-![post_users2](images/post_users2.png)
-
-Evidencia PUT /users/{user_id}
-
-![put_users](images/put_users.png)
-![put_users2](images/put_users2.png)
-
-Evidencia PATCH /users/{user_id}
-
-![patch_users](images/patch_users.png)
-![patch_users2](images/patch_users2.png)
-
-Evidencia DELETE /users/{user_id}
-
-![delete_users](images/delete_users.png)
-![delete_users2](images/delete_users2.png)
-
-Evidencia error 404
-
-![error_404](images/error_404.png)
-![error2_404](images/error2_404.png)
-
-Evidencia error correo duplicado
-
-![error_duplicado](images/error_duplicado.png)
-![error_duplicado2](images/error_duplicado2.png)
-
-Evidencia error validacion
-
-![error_validacion](images/error_validacion.png)
-![error_validacion2](images/error_validacion2.png)
-
-Evidencia error patch vacio
-
-![error_patch_vacio](images/error_patch_vacio.png)
-![error_patch_vacio2](images/error_patch_vacio2.png)
-
-Reflexion
-
-La evolucion de device_systems hacia un CRUD completo demostro como FastAPI permite escalar una API de forma ordenada. La separacion en capas, rutas, servicios, dependencias y datos, hace que el codigo sea mas facil de mantener y extender. El uso de Depends() elimino la duplicacion de logica como la busqueda de usuarios por ID o la validacion de correos. El manejo de errores con HTTPException y manejadores personalizados garantiza que la API siempre responda de forma predecible. Los codigos HTTP correctos en cada operacion hacen que la API sea intuitiva para cualquier cliente que la consuma.
+Usar persistencia en una API REST es fundamental porque los datos no se pierden cuando el servidor se reinicia. En la version anterior los usuarios se guardaban en memoria y se borraban al detener el servidor. Con SQLAlchemy y SQLite los datos quedan almacenados en un archivo fisico, lo que permite que la API funcione como una aplicacion real. Ademas el uso de un ORM facilita las operaciones sobre la base de datos sin necesidad de escribir SQL directamente.

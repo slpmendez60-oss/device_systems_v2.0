@@ -1,101 +1,75 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
-from enum import Enum
+from datetime import datetime
 
-
-class RoleEnum(str, Enum):
-    admin = "admin"
-    support = "support"
-    user = "user"
-
+ROLES_PERMITIDOS = ["admin", "support", "user"]
 
 class UserCreate(BaseModel):
-    name: str = Field(min_length=3)
-    email: str
-    role: RoleEnum
+    name: str
+    email: EmailStr
+    role: str
     is_active: bool = True
 
-    @field_validator("email")
-    @classmethod
-    def validar_email(cls, v: str) -> str:
-        if "@" not in v or "." not in v.split("@")[-1]:
-            raise ValueError("email no valido")
-        return v.lower().strip()
-
     @field_validator("name")
     @classmethod
-    def validar_name(cls, v: str) -> str:
-        v = v.strip()
+    def name_min_length(cls, v):
         if len(v) < 3:
-            raise ValueError("el nombre debe tener al menos 3 caracteres")
+            raise ValueError("El nombre debe tener minimo 3 caracteres")
         return v
 
+    @field_validator("role")
+    @classmethod
+    def role_valido(cls, v):
+        if v not in ROLES_PERMITIDOS:
+            raise ValueError(f"El rol debe ser uno de: {ROLES_PERMITIDOS}")
+        return v
 
 class UserUpdate(BaseModel):
-    name: str = Field(min_length=3)
-    email: str
-    role: RoleEnum
+    name: str
+    email: EmailStr
+    role: str
     is_active: bool
-
-    @field_validator("email")
-    @classmethod
-    def validar_email(cls, v: str) -> str:
-        if "@" not in v or "." not in v.split("@")[-1]:
-            raise ValueError("email no valido")
-        return v.lower().strip()
 
     @field_validator("name")
     @classmethod
-    def validar_name(cls, v: str) -> str:
-        v = v.strip()
+    def name_min_length(cls, v):
         if len(v) < 3:
-            raise ValueError("el nombre debe tener al menos 3 caracteres")
+            raise ValueError("El nombre debe tener minimo 3 caracteres")
         return v
 
+    @field_validator("role")
+    @classmethod
+    def role_valido(cls, v):
+        if v not in ROLES_PERMITIDOS:
+            raise ValueError(f"El rol debe ser uno de: {ROLES_PERMITIDOS}")
+        return v
 
 class UserPatch(BaseModel):
     name: Optional[str] = None
-    email: Optional[str] = None
-    role: Optional[RoleEnum] = None
+    email: Optional[EmailStr] = None
+    role: Optional[str] = None
     is_active: Optional[bool] = None
-
-    @field_validator("email")
-    @classmethod
-    def validar_email(cls, v: str) -> str:
-        if v is not None:
-            if "@" not in v or "." not in v.split("@")[-1]:
-                raise ValueError("email no valido")
-            return v.lower().strip()
-        return v
 
     @field_validator("name")
     @classmethod
-    def validar_name(cls, v: str) -> str:
-        if v is not None:
-            v = v.strip()
-            if len(v) < 3:
-                raise ValueError("el nombre debe tener al menos 3 caracteres")
+    def name_min_length(cls, v):
+        if v is not None and len(v) < 3:
+            raise ValueError("El nombre debe tener minimo 3 caracteres")
         return v
 
+    @field_validator("role")
+    @classmethod
+    def role_valido(cls, v):
+        if v is not None and v not in ROLES_PERMITIDOS:
+            raise ValueError(f"El rol debe ser uno de: {ROLES_PERMITIDOS}")
+        return v
 
 class UserResponse(BaseModel):
     id: int
     name: str
     email: str
-    role: RoleEnum
+    role: str
     is_active: bool
+    created_at: datetime
 
-
-class UserCreatedResponse(BaseModel):
-    message: str
-    user: UserResponse
-
-
-class UserUpdatedResponse(BaseModel):
-    message: str
-    user: UserResponse
-
-
-class UserDeletedResponse(BaseModel):
-    message: str
-    user: UserResponse
+    model_config = {"from_attributes": True}

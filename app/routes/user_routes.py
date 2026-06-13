@@ -1,107 +1,55 @@
-from fastapi import APIRouter, Response, Depends, HTTPException
-from typing import Optional, List
-
-from app.schemas.user_schema import (
-    UserCreate, UserUpdate, UserPatch,
-    UserResponse, UserCreatedResponse, UserUpdatedResponse, UserDeletedResponse,
-    RoleEnum,
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
+from typing import List, Optional
+from app.schemas.user_schema import UserCreate, UserUpdate, UserPatch, UserResponse
+from app.dependencies.database_dependency import get_db
+from app.services.user_service import (
+    crear_usuario,
+    listar_usuarios,
+    obtener_usuario_por_id,
+    actualizar_usuario,
+    actualizar_usuario_parcial,
+    eliminar_usuario,
+    filtrar_por_rol,
+    filtrar_por_estado,
+    ordenar_usuarios
 )
-from app.dependencies.user_dependencies import get_user_or_404, get_api_info
-from app.services import user_service
 
-router = APIRouter(
-    prefix="/users",
-    tags=["users"],
-)
+router = APIRouter(prefix="/users", tags=["users"])
 
-
-@router.get("", response_model=List[UserResponse], summary="Listar usuarios")
-def get_users(
-    response: Response,
-    role: Optional[RoleEnum] = None,
+@router.get("", response_model=List[UserResponse])
+def listar(
+    skip: int = 0,
+    limit: int = 100,
+    role: Optional[str] = None,
     is_active: Optional[bool] = None,
-    info: dict = Depends(get_api_info),
+    orden: Optional[str] = None,
+    db: Session = Depends(get_db)
 ):
-    response.headers["X-App-Name"] = info["app"]
-    response.headers["X-API-Version"] = info["version"]
-    return user_service.list_users(
-        role=role.value if role else None,
-        is_active=is_active,
-    )
+    if role:
+        return filtrar_por_rol(db, role)
+    if is_active is not None:
+        return filtrar_por_estado(db, is_active)
+    if orden:
+        return ordenar_usuarios(db, orden)
+    return listar_usuarios(db, skip, limit)
 
+@router.get("/{user_id}", response_model=UserResponse)
+def obtener(user_id: int, db: Session = Depends(get_db)):
+    return obtener_usuario_por_id(db, user_id)
 
-@router.get("/{user_id}", response_model=UserResponse, summary="Obtener usuario por ID")
-def get_user_by_id(
-    response: Response,
-    user: dict = Depends(get_user_or_404),
-    info: dict = Depends(get_api_info),
-):
-    response.headers["X-App-Name"] = info["app"]
-    response.headers["X-API-Version"] = info["version"]
-    return user
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def crear(data: UserCreate, db: Session = Depends(get_db)):
+    return crear_usuario(db, data)
 
+@router.put("/{user_id}", response_model=UserResponse)
+def actualizar(user_id: int, data: UserUpdate, db: Session = Depends(get_db)):
+    return actualizar_usuario(db, user_id, data)
 
-@router.post("", response_model=UserCreatedResponse, status_code=201, summary="Crear usuario")
-def create_user(
-    user_data: UserCreate,
-    response: Response,
-    info: dict = Depends(get_api_info),
-):
-    response.headers["X-App-Name"] = info["app"]
-    response.headers["X-API-Version"] = info["version"]
-    nuevo = user_service.create_user(
-        name=user_data.name,
-        email=user_data.email,
-        role=user_data.role.value,
-        is_active=user_data.is_active,
-    )
-    return {"message": "usuario creado", "user": nuevo}
+@router.patch("/{user_id}", response_model=UserResponse)
+def actualizar_parcial(user_id: int, data: UserPatch, db: Session = Depends(get_db)):
+    return actualizar_usuario_parcial(db, user_id, data)
 
-
-@router.put("/{user_id}", response_model=UserUpdatedResponse, summary="Actualizar usuario completo")
-def update_user(
-    user_data: UserUpdate,
-    response: Response,
-    user: dict = Depends(get_user_or_404),
-    info: dict = Depends(get_api_info),
-):
-    response.headers["X-App-Name"] = info["app"]
-    response.headers["X-API-Version"] = info["version"]
-    actualizado = user_service.update_user(
-        user=user,
-        name=user_data.name,
-        email=user_data.email,
-        role=user_data.role.value,
-        is_active=user_data.is_active,
-    )
-    return {"message": "usuario actualizado", "user": actualizado}
-
-
-@router.patch("/{user_id}", response_model=UserUpdatedResponse, summary="Actualizar usuario parcialmente")
-def patch_user(
-    user_data: UserPatch,
-    response: Response,
-    user: dict = Depends(get_user_or_404),
-    info: dict = Depends(get_api_info),
-):
-    response.headers["X-App-Name"] = info["app"]
-    response.headers["X-API-Version"] = info["version"]
-    fields = user_data.model_dump(exclude_unset=True)
-    if not fields:
-        raise HTTPException(status_code=400, detail="debe enviar al menos un campo para actualizar")
-    if "role" in fields and fields["role"] is not None:
-        fields["role"] = fields["role"].value
-    actualizado = user_service.patch_user(user=user, fields=fields)
-    return {"message": "usuario actualizado parcialmente", "user": actualizado}
-
-
-@router.delete("/{user_id}", response_model=UserDeletedResponse, summary="Eliminar usuario")
-def delete_user(
-    response: Response,
-    user: dict = Depends(get_user_or_404),
-    info: dict = Depends(get_api_info),
-):
-    response.headers["X-App-Name"] = info["app"]
-    response.headers["X-API-Version"] = info["version"]
-    eliminado = user_service.delete_user(user=user)
-    return {"message": "usuario eliminado", "user": eliminado}
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar(user_id: int, db: Session = Depends(get_db)):
+    eliminar_usuario(db, user_id)

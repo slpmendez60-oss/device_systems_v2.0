@@ -1,48 +1,74 @@
-from typing import Optional, List
-from app.data import users_db as db
-from app.dependencies.user_dependencies import check_email_exists
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException
+from app.models.user_model import User
+from app.schemas.user_schema import UserCreate, UserUpdate, UserPatch
 
+def crear_usuario(db: Session, data: UserCreate):
+    usuario = User(**data.model_dump())
+    try:
+        db.add(usuario)
+        db.commit()
+        db.refresh(usuario)
+        return usuario
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="El email ya esta registrado")
 
-def list_users(role: Optional[str], is_active: Optional[bool]) -> List[dict]:
-    resultado = db.fake_db
-    if role is not None:
-        resultado = [u for u in resultado if u["role"] == role]
-    if is_active is not None:
-        resultado = [u for u in resultado if u["is_active"] == is_active]
-    return resultado
+def listar_usuarios(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(User).offset(skip).limit(limit).all()
 
+def obtener_usuario_por_id(db: Session, user_id: int):
+    usuario = db.query(User).filter(User.id == user_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return usuario
 
-def create_user(name: str, email: str, role: str, is_active: bool) -> dict:
-    check_email_exists(email)
-    nuevo = {
-        "id": db.id_counter,
-        "name": name,
-        "email": email.lower().strip(),
-        "role": role,
-        "is_active": is_active,
-    }
-    db.fake_db.append(nuevo)
-    db.id_counter += 1
-    return nuevo
+def obtener_usuario_por_email(db: Session, email: str):
+    return db.query(User).filter(User.email == email).first()
 
+def actualizar_usuario(db: Session, user_id: int, data: UserUpdate):
+    usuario = db.query(User).filter(User.id == user_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    try:
+        for campo, valor in data.model_dump().items():
+            setattr(usuario, campo, valor)
+        db.commit()
+        db.refresh(usuario)
+        return usuario
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="El email ya esta registrado")
 
-def update_user(user: dict, name: str, email: str, role: str, is_active: bool) -> dict:
-    check_email_exists(email, exclude_id=user["id"])
-    user["name"] = name
-    user["email"] = email.lower().strip()
-    user["role"] = role
-    user["is_active"] = is_active
-    return user
+def actualizar_usuario_parcial(db: Session, user_id: int, data: UserPatch):
+    usuario = db.query(User).filter(User.id == user_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    try:
+        for campo, valor in data.model_dump(exclude_unset=True).items():
+            setattr(usuario, campo, valor)
+        db.commit()
+        db.refresh(usuario)
+        return usuario
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="El email ya esta registrado")
 
+def eliminar_usuario(db: Session, user_id: int):
+    usuario = db.query(User).filter(User.id == user_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    db.delete(usuario)
+    db.commit()
 
-def patch_user(user: dict, fields: dict) -> dict:
-    for campo, valor in fields.items():
-        if campo == "email":
-            valor = valor.lower().strip()
-        user[campo] = valor
-    return user
+def filtrar_por_rol(db: Session, role: str):
+    return db.query(User).filter(User.role == role).all()
 
+def filtrar_por_estado(db: Session, is_active: bool):
+    return db.query(User).filter(User.is_active == is_active).all()
 
-def delete_user(user: dict) -> dict:
-    db.fake_db.remove(user)
-    return user
+def ordenar_usuarios(db: Session, orden: str = "name"):
+    if orden == "created_at":
+        return db.query(User).order_by(User.created_at).all()
+    return db.query(User).order_by(User.name).all()
