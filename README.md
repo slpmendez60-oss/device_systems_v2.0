@@ -1,60 +1,124 @@
-# device_systems API v3.0
+# FastAPI Avanzado: Migraciones con Alembic, Asociaciones de Modelos y Consultas con Joins
+## Proyecto: device_systems_v2.0
 
-API REST para la gestion de usuarios del sistema device_systems con persistencia de datos mediante SQLAlchemy y SQLite.
 
-## Estructura del proyecto
+## Descripcion General
 
-![estructura](images2/estructura_proyecto.png)
+Esta version extiende la API device_systems con tres capacidades fundamentales:
 
-## Base de datos generada
+1. Migraciones de base de datos con Alembic
+2. Asociaciones entre modelos (User, Device, Loan)
+3. Consultas avanzadas con joins y filtros
 
-![base_datos](images2/base_datos.png)
 
-## Swagger UI
+## Fase 3 - Configuracion de Alembic
 
-![swagger](images2/swagger.png)
+### Paso 1: alembic init
+![alembic init](images3/alembic_init.png)
 
-## Pruebas de endpoints
+### Paso 2: alembic revision --autogenerate
+![alembic revision](images3/alembic_revision.png)
 
-### Prueba 1 - Crear usuario valido (POST /users) - 201
-![crear_usuario](images2/crear_usuario.png)
+### Paso 3: alembic upgrade head
+![alembic upgrade](images3/alembic_upgrade.png)
 
-### Prueba 2 - Email repetido (POST /users) - 400
-![email_repetido](images2/email_repetido.png)
+### Paso 4: alembic history
+![alembic history](images3/alembic_history.png)
 
-### Prueba 3 - Listar usuarios (GET /users) - 200
-![listar_usuarios](images2/listar_usuarios.png)
+### Paso 5: Estructura de tablas generadas
+![tablas](images3/tablas_db.png)
 
-### Prueba 4 - Consultar por ID (GET /users/1) - 200
-![consultar_usuario_id](images2/consultar_usuario_id.png)
 
-### Prueba 5 - Usuario inexistente (GET /users/999) - 404
-![usuario_inexistente](images2/usuario_inexistente.png)
+## Modelos y Relaciones
 
-### Prueba 6 - Filtrar por rol (GET /users?role=admin) - 200
-![filtrar_rol](images2/filtrar_rol.png)
+User tiene los campos id, name, email, role, is_active, created_at y se relaciona con loans en one-to-many.
 
-### Prueba 7 - Filtrar activos (GET /users?is_active=true) - 200
-![filtrar_usuarios_activos](images2/filtrar_usuarios_activos.png)
+Device tiene los campos id, name, serial_number, device_type, brand, is_available, created_at y se relaciona con loans en one-to-many.
 
-### Prueba 8 - Actualizar completo (PUT /users/1) - 200
-![actualizar_put](images2/actualizar_put.png)
+Loan tiene los campos id, user_id, device_id, loan_date, return_date, status y se relaciona con User y Device en many-to-one.
 
-### Prueba 9 - Actualizar parcial (PATCH /users/1) - 200
-![actualizar_patch](images2/actualizar_patch.png)
 
-### Prueba 10 - Eliminar usuario (DELETE /users/1) - 204
-![eliminar_usuario](images2/eliminar_usuario.png)
+## Endpoints
 
-### Prueba 11 - Verificar eliminado (GET /users/1) - 404
-![verificar_usuario_eliminado](images2/verificar_usuario_eliminado.png)
+### Users
+- GET /users - Listar usuarios
+- POST /users - Crear usuario
+- GET /users/{id} - Obtener por ID
+- PUT /users/{id} - Actualizar completo
+- PATCH /users/{id} - Actualizar parcial
+- DELETE /users/{id} - Eliminar
+- GET /users/{id}/loans - Prestamos del usuario
 
-## Diferencia entre modelo SQLAlchemy y schema Pydantic
+### Devices
+- GET /devices - Listar con filtros
+- POST /devices - Crear dispositivo
+- GET /devices/{id} - Obtener por ID
+- PUT /devices/{id} - Actualizar completo
+- PATCH /devices/{id} - Actualizar parcial
+- DELETE /devices/{id} - Eliminar
+- GET /devices/{id}/loans - Historial prestamos
 
-El modelo SQLAlchemy representa la tabla en la base de datos. Define las columnas, tipos de datos y restricciones a nivel de base de datos como nullable, unique y primary key. Es la capa que se comunica directamente con SQLite.
+### Loans
+- GET /loans - Listar con filtros
+- GET /loans/details - Listar con join completo
+- POST /loans - Crear prestamo
+- GET /loans/{id} - Obtener por ID
+- PATCH /loans/{id}/return - Devolver dispositivo
 
-El schema Pydantic define la estructura de datos para la entrada y salida de la API. Aplica validaciones a nivel de aplicacion como longitud minima, formato de email y valores permitidos para el rol. No tiene relacion directa con la base de datos.
 
-## Reflexion final
+## Evidencias Swagger UI
 
-Usar persistencia en una API REST es fundamental porque los datos no se pierden cuando el servidor se reinicia. En la version anterior los usuarios se guardaban en memoria y se borraban al detener el servidor. Con SQLAlchemy y SQLite los datos quedan almacenados en un archivo fisico, lo que permite que la API funcione como una aplicacion real. Ademas el uso de un ORM facilita las operaciones sobre la base de datos sin necesidad de escribir SQL directamente.
+### Vista general de la API
+![swagger](images3/swagger_general.png)
+
+### Crear usuario - 201
+![crear usuario](images3/crear_usuario.png)
+
+### Crear dispositivo - 201
+![crear dispositivo](images3/crear_dispositivo.png)
+
+### Crear prestamo - 201
+![crear prestamo](images3/crear_prestamo.png)
+
+### Dispositivo no disponible - 409
+![no disponible](images3/dispositivo_no_disponible.png)
+
+### Consulta con join - GET /loans/details
+![join](images3/loans_details_join.png)
+
+### Filtro por estado active
+![filtro estado](images3/filtro_status_active.png)
+
+### Filtro por tipo de dispositivo laptop
+![filtro tipo](images3/filtro_device_type.png)
+
+### Prestamos de un usuario
+![prestamos usuario](images3/prestamos_usuario.png)
+
+### Devolucion de dispositivo - 200
+![devolucion](images3/devolucion_prestamo.png)
+
+### Dispositivo disponible de nuevo
+![disponible](images3/dispositivo_disponible.png)
+
+### Historial del dispositivo
+![historial](images3/historial_dispositivo.png)
+
+
+## Reflexion
+
+Las migraciones con Alembic permiten versionar los cambios estructurales de la base
+de datos de forma controlada. Esto es fundamental en equipos de trabajo donde varios
+desarrolladores modifican el esquema: sin migraciones cada desarrollador tendria que
+aplicar cambios manuales generando inconsistencias entre entornos.
+
+Las relaciones entre modelos permiten representar la realidad del negocio de forma
+natural. Un usuario puede tener muchos prestamos y un dispositivo puede aparecer en
+el historial de varios prestamos. Usar relationship() con back_populates hace que
+SQLAlchemy maneje automaticamente la carga de datos relacionados sin necesidad de
+consultas adicionales.
+
+Las consultas con joins y filtros avanzados son indispensables en una API real.
+El endpoint GET /loans/details combina tres tablas en una sola consulta eficiente.
+Los filtros por estado, email o tipo de dispositivo hacen que la API sea util para
+casos de uso concretos sin traer datos innecesarios al cliente.

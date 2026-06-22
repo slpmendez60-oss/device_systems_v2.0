@@ -14,7 +14,9 @@ from app.services.user_service import (
     filtrar_por_estado,
     ordenar_usuarios
 )
-
+from app.schemas.loan_schema import LoanDetailResponse
+from app.services.loan_service import obtener_prestamos_por_usuario
+    
 router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("", response_model=List[UserResponse])
@@ -53,3 +55,18 @@ def actualizar_parcial(user_id: int, data: UserPatch, db: Session = Depends(get_
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar(user_id: int, db: Session = Depends(get_db)):
     eliminar_usuario(db, user_id)
+
+@router.get("/{user_id}/loans", response_model=List[LoanDetailResponse])
+def prestamos_usuario(user_id: int, db: Session = Depends(get_db)):
+    prestamos = obtener_prestamos_por_usuario(db, user_id)
+    return [
+        LoanDetailResponse(
+            loan_id=p.id,
+            status=p.status,
+            loan_date=p.loan_date,
+            return_date=p.return_date,
+            user=p.user,
+            device=p.device
+        )
+        for p in prestamos
+    ]
