@@ -3,6 +3,8 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from app.database.connection import engine, Base
 from app.routes.user_routes import router as user_router
+from app.routes.device_routes import router as device_router
+from app.routes.loan_routes import router as loan_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -17,6 +19,8 @@ app = FastAPI(
 )
 
 app.include_router(user_router)
+app.include_router(device_router)
+app.include_router(loan_router)
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
