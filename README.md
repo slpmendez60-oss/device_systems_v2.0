@@ -1,124 +1,188 @@
-# FastAPI Avanzado: Migraciones con Alembic, Asociaciones de Modelos y Consultas con Joins
-## Proyecto: device_systems_v2.0
+# device_systems API v2.0
 
+API REST segura para la gestion de usuarios, dispositivos y prestamos, construida con FastAPI, SQLAlchemy, Alembic y autenticacion OAuth2 con JWT.
 
-## Descripcion General
+## Estructura del proyecto
 
-Esta version extiende la API device_systems con tres capacidades fundamentales:
+![Estructura del proyecto](images4/estructura_del_proyecto.png)
 
-1. Migraciones de base de datos con Alembic
-2. Asociaciones entre modelos (User, Device, Loan)
-3. Consultas avanzadas con joins y filtros
+## Instalacion
 
+pip install -r requirements.txt
 
-## Fase 3 - Configuracion de Alembic
+Copiar .env.example a .env y configurar las variables.
 
-### Paso 1: alembic init
-![alembic init](images3/alembic_init.png)
+Aplicar migraciones:
 
-### Paso 2: alembic revision --autogenerate
-![alembic revision](images3/alembic_revision.png)
+python -m alembic upgrade head
 
-### Paso 3: alembic upgrade head
-![alembic upgrade](images3/alembic_upgrade.png)
+Iniciar el servidor:
 
-### Paso 4: alembic history
-![alembic history](images3/alembic_history.png)
+python -m uvicorn app.main:app --reload
 
-### Paso 5: Estructura de tablas generadas
-![tablas](images3/tablas_db.png)
+## Variables de entorno (.env.example)
 
+SECRET_KEY=tu_clave_secreta_aqui
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+DATABASE_URL=sqlite:///./device_systems.db
 
-## Modelos y Relaciones
+## Migracion Alembic aplicada
 
-User tiene los campos id, name, email, role, is_active, created_at y se relaciona con loans en one-to-many.
+![Migracion Alembic](images4/migración_Alembic_aplicada.png)
 
-Device tiene los campos id, name, serial_number, device_type, brand, is_available, created_at y se relaciona con loans en one-to-many.
+## Autenticacion
 
-Loan tiene los campos id, user_id, device_id, loan_date, return_date, status y se relaciona con User y Device en many-to-one.
+La API usa OAuth2 con tokens JWT. Para acceder a rutas protegidas:
 
+1. Registrar un usuario: POST /auth/register
+2. Hacer login: POST /auth/login
+3. Usar el token en el header: Authorization: Bearer token
 
-## Endpoints
+### Endpoints de autenticacion
 
-### Users
-- GET /users - Listar usuarios
-- POST /users - Crear usuario
-- GET /users/{id} - Obtener por ID
-- PUT /users/{id} - Actualizar completo
-- PATCH /users/{id} - Actualizar parcial
-- DELETE /users/{id} - Eliminar
-- GET /users/{id}/loans - Prestamos del usuario
+| Metodo | Ruta | Descripcion | Limite |
+|--------|------|-------------|--------|
+| POST | /auth/register | Registrar usuario | 3/minuto |
+| POST | /auth/login | Login y token JWT | 5/minuto |
+| GET | /auth/me | Datos del usuario autenticado | - |
 
-### Devices
-- GET /devices - Listar con filtros
-- POST /devices - Crear dispositivo
-- GET /devices/{id} - Obtener por ID
-- PUT /devices/{id} - Actualizar completo
-- PATCH /devices/{id} - Actualizar parcial
-- DELETE /devices/{id} - Eliminar
-- GET /devices/{id}/loans - Historial prestamos
+## Pruebas funcionales
 
-### Loans
-- GET /loans - Listar con filtros
-- GET /loans/details - Listar con join completo
-- POST /loans - Crear prestamo
-- GET /loans/{id} - Obtener por ID
-- PATCH /loans/{id}/return - Devolver dispositivo
+### Registro de usuario
 
+[Registro de usuario](images4/registro_de_usuario.png)
 
-## Evidencias Swagger UI
+### Login y token generado
 
-### Vista general de la API
-![swagger](images3/swagger_general.png)
+[Login y token](images4/login_y_token_generado.png)
 
-### Crear usuario - 201
-![crear usuario](images3/crear_usuario.png)
+### Consulta /auth/me
 
-### Crear dispositivo - 201
-![crear dispositivo](images3/crear_dispositivo.png)
+[Auth me](images4/auth_me.png)
 
-### Crear prestamo - 201
-![crear prestamo](images3/crear_prestamo.png)
+### Acceso sin token - 401
 
-### Dispositivo no disponible - 409
-![no disponible](images3/dispositivo_no_disponible.png)
+[Sin token](images4/acceso_sin_token.png)
 
-### Consulta con join - GET /loans/details
-![join](images3/loans_details_join.png)
+### Acceso con rol no permitido - 403
 
-### Filtro por estado active
-![filtro estado](images3/filtro_status_active.png)
+[Rol no permitido](images4/acceso_con_rol_no_permitido.png)
 
-### Filtro por tipo de dispositivo laptop
-![filtro tipo](images3/filtro_device_type.png)
+### Swagger con OAuth2
 
-### Prestamos de un usuario
-![prestamos usuario](images3/prestamos_usuario.png)
+[Swagger OAuth2](images4/Swagger.png)
 
-### Devolucion de dispositivo - 200
-![devolucion](images3/devolucion_prestamo.png)
+### Cabeceras del middleware
 
-### Dispositivo disponible de nuevo
-![disponible](images3/dispositivo_disponible.png)
+[Cabeceras middleware](images4/cabeceras_del_middleware.png)
 
-### Historial del dispositivo
-![historial](images3/historial_dispositivo.png)
+### Rate limiting - 429
 
+[Rate limiting](images4/rate_limiting.png)
 
-## Reflexion
+## Proteccion de rutas
 
-Las migraciones con Alembic permiten versionar los cambios estructurales de la base
-de datos de forma controlada. Esto es fundamental en equipos de trabajo donde varios
-desarrolladores modifican el esquema: sin migraciones cada desarrollador tendria que
-aplicar cambios manuales generando inconsistencias entre entornos.
+| Ruta | Proteccion requerida |
+|------|----------------------|
+| GET /users | Usuario autenticado |
+| GET /users/{id} | Usuario autenticado |
+| POST /users | Admin |
+| PUT /users/{id} | Admin |
+| DELETE /users/{id} | Admin |
+| POST /devices | Admin o support |
+| PUT /devices/{id} | Admin o support |
+| DELETE /devices/{id} | Admin |
+| POST /loans | Usuario autenticado |
+| PATCH /loans/{id}/return | Admin o support |
+| GET /loans/details | Admin o support |
 
-Las relaciones entre modelos permiten representar la realidad del negocio de forma
-natural. Un usuario puede tener muchos prestamos y un dispositivo puede aparecer en
-el historial de varios prestamos. Usar relationship() con back_populates hace que
-SQLAlchemy maneje automaticamente la carga de datos relacionados sin necesidad de
-consultas adicionales.
+Roles disponibles: admin, support, user
 
-Las consultas con joins y filtros avanzados son indispensables en una API real.
-El endpoint GET /loans/details combina tres tablas en una sola consulta eficiente.
-Los filtros por estado, email o tipo de dispositivo hacen que la API sea util para
-casos de uso concretos sin traer datos innecesarios al cliente.
+## Hash de contrasenas
+
+Las contrasenas nunca se guardan en texto plano. Se usa passlib con el algoritmo bcrypt:
+
+get_password_hash(password)    genera el hash
+verify_password(plain, hashed) verifica la contrasena
+
+El campo hashed_password nunca se expone en los response models.
+
+## Validaciones de contrasena con Pydantic v2
+
+- Minimo 8 caracteres
+- Al menos una mayuscula
+- Al menos una minuscula
+- Al menos un numero
+- Sin espacios en blanco
+
+## Middleware personalizado
+
+Cada peticion agrega automaticamente las cabeceras:
+
+X-App-Name: device_systems
+X-Process-Time: 0.0037
+X-Request-ID: caad29d2
+
+Tambien registra en consola el metodo, ruta y codigo de estado de cada peticion.
+
+## Configuracion CORS
+
+allow_origins=["http://localhost:5173", "http://localhost:3000"]
+allow_credentials=True
+allow_methods=["*"]
+allow_headers=["*"]
+
+### Por que no se recomienda usar asterisco en produccion con credenciales
+
+Cuando allow_credentials es True, el navegador exige que allow_origins sea una lista
+explicita de dominios y no acepta el comodin asterisco. Si se usara asterisco con
+credenciales, el navegador bloquearia las peticiones por politica de seguridad CORS.
+
+Ademas, permitir todos los origenes en produccion expone la API a peticiones de cualquier
+dominio, lo que facilita ataques CSRF y el acceso no autorizado desde sitios maliciosos.
+En produccion siempre se deben especificar unicamente los dominios del frontend autorizado.
+
+## Rate Limiting
+
+| Endpoint | Limite |
+|----------|--------|
+| POST /auth/login | 5 solicitudes/minuto |
+| POST /auth/register | 3 solicitudes/minuto |
+| GET /users | 30 solicitudes/minuto |
+| POST /loans | 10 solicitudes/minuto |
+
+Cuando se supera el limite, la API responde con 429 Too Many Requests.
+
+## Reflexion final sobre la importancia de la seguridad en APIs REST
+
+Implementar seguridad en una API REST no es opcional, es una responsabilidad fundamental.
+A lo largo de esta actividad aprendi que proteger los datos de los usuarios requiere
+multiples capas trabajando juntas.
+
+El hash de contrasenas con bcrypt garantiza que incluso si la base de datos es comprometida,
+las contrasenas reales permanecen protegidas. Los tokens JWT permiten autenticar cada
+peticion sin necesidad de enviar credenciales en cada llamada, reduciendo el riesgo de
+exposicion. La autorizacion por roles asegura que cada usuario solo puede realizar las
+operaciones que le corresponden segun su nivel de acceso.
+
+El middleware de trazabilidad permite detectar comportamientos anomalos, medir el
+rendimiento y hacer seguimiento de cada peticion mediante un ID unico. El rate limiting
+protege contra ataques de fuerza bruta y abuso de endpoints. La configuracion de CORS
+controla exactamente que origenes pueden consumir la API, evitando accesos no autorizados
+desde dominios externos.
+
+Cada una de estas capas por separado aporta proteccion, pero juntas construyen una API
+profesional, confiable y lista para entornos reales. La seguridad debe pensarse desde el
+diseno inicial del proyecto, no como algo que se agrega al final del desarrollo.
+
+## Tecnologias utilizadas
+
+- FastAPI
+- SQLAlchemy 2.0
+- Alembic
+- Pydantic v2
+- Passlib con bcrypt
+- Python-jose para JWT
+- Slowapi para rate limiting
+- SQLite
