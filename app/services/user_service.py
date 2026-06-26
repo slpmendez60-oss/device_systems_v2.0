@@ -4,8 +4,16 @@ from fastapi import HTTPException
 from app.models.user_model import User
 from app.schemas.user_schema import UserCreate, UserUpdate, UserPatch
 
-def crear_usuario(db: Session, data: UserCreate):
-    usuario = User(**data.model_dump())
+
+def criar_usuario_direto(db: Session, data: UserCreate):
+    from app.auth.security import get_password_hash
+    usuario = User(
+        name=data.name,
+        email=data.email,
+        hashed_password=get_password_hash("Temporal1"),
+        role=data.role,
+        is_active=data.is_active,
+    )
     try:
         db.add(usuario)
         db.commit()
@@ -15,8 +23,10 @@ def crear_usuario(db: Session, data: UserCreate):
         db.rollback()
         raise HTTPException(status_code=400, detail="El email ya esta registrado")
 
+
 def listar_usuarios(db: Session, skip: int = 0, limit: int = 100):
     return db.query(User).offset(skip).limit(limit).all()
+
 
 def obtener_usuario_por_id(db: Session, user_id: int):
     usuario = db.query(User).filter(User.id == user_id).first()
@@ -24,8 +34,10 @@ def obtener_usuario_por_id(db: Session, user_id: int):
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return usuario
 
+
 def obtener_usuario_por_email(db: Session, email: str):
     return db.query(User).filter(User.email == email).first()
+
 
 def actualizar_usuario(db: Session, user_id: int, data: UserUpdate):
     usuario = db.query(User).filter(User.id == user_id).first()
@@ -41,6 +53,7 @@ def actualizar_usuario(db: Session, user_id: int, data: UserUpdate):
         db.rollback()
         raise HTTPException(status_code=400, detail="El email ya esta registrado")
 
+
 def actualizar_usuario_parcial(db: Session, user_id: int, data: UserPatch):
     usuario = db.query(User).filter(User.id == user_id).first()
     if not usuario:
@@ -55,6 +68,7 @@ def actualizar_usuario_parcial(db: Session, user_id: int, data: UserPatch):
         db.rollback()
         raise HTTPException(status_code=400, detail="El email ya esta registrado")
 
+
 def eliminar_usuario(db: Session, user_id: int):
     usuario = db.query(User).filter(User.id == user_id).first()
     if not usuario:
@@ -62,11 +76,14 @@ def eliminar_usuario(db: Session, user_id: int):
     db.delete(usuario)
     db.commit()
 
+
 def filtrar_por_rol(db: Session, role: str):
     return db.query(User).filter(User.role == role).all()
 
+
 def filtrar_por_estado(db: Session, is_active: bool):
     return db.query(User).filter(User.is_active == is_active).all()
+
 
 def ordenar_usuarios(db: Session, orden: str = "name"):
     if orden == "created_at":
